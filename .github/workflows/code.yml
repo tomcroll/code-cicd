@@ -4,7 +4,7 @@ on:
     branches:
         - code-cicd
 env:
-  AWS_REGION: ${{ vars.REGION }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
   EKS_CLUSTER: ${{ vars.EKS_CLUSTER }}
 
