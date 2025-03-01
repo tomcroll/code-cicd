@@ -4,7 +4,7 @@ FROM php:8.3-apache
 ## Set working directory
 WORKDIR /var/www/html
 
-## Install dependencies and enable necessary Apache modules in a single RUN command
+# Install dependencies and enable necessary Apache modules in a single RUN command
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     zip \
