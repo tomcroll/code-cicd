@@ -1,0 +1,48 @@
+services:
+  # PHP Application
+  php-app:
+    image: oluwaseuna/docker-jenkins:12
+    container_name: php-app
+    ports:
+      - "80:80"  # Expose port 80 on the container to port 8080 on localhost
+    environment:
+      DB_HOST: db
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      AWS_DEFAULT_REGION: ${REGION}
+    depends_on:
+      - db
+
+  # MySQL Database
+  db:
+    image: mysql:8.0.36
+    container_name: mysql-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+
+  # phpMyAdmin for Database Administration
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "8081:80"  # Expose phpMyAdmin on port 8081
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+      # MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      - db
+
+volumes:
+  db_data:

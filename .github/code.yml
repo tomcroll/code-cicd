@@ -1,0 +1,72 @@
+name: webapp-actions
+on:
+  push:
+    branches:
+        - code-cicd
+env:
+  AWS_REGION: ${{ vars.REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  EKS_CLUSTER: ${{ vars.EKS_CLUSTER }}
+
+jobs:
+  BuildandPush:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+    
+      - name: Build & Upload image to ECR
+        uses: appleboy/docker-ecr-action@master
+        with:
+         access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         registry: ${{ secrets.REGSTRY }}
+         repo: ${{ env.ECR_REPOSITORY }}
+         region: ${{ env.AWS_REGION }}
+         tags: ${{ github.run_number }}
+         daemon_off: false
+         dockerfile: ./Dockerfile
+         context: ./
+  DeployToEKS:
+    needs: BuildandPush
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout source code
+          uses: actions/checkout@v4
+
+        - name: Configure AWS credentials
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
+        
+        - name: Get Kubernetes config
+          id: getconfig
+          run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+        - name: Login to ECR
+          run: |
+            kubectl get secret regcred || \
+            kubectl create secret docker-registry regcred \
+              --docker-server=${{ secrets.REGISTRY }} \
+              --docker-username=AWS \
+              --docker-password=$(aws ecr get-login-password)
+
+        - name: Deploy with Helm
+          uses: bitovi/github-actions-deploy-eks-helm@v1.2.12
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
+            cluster-name: ${{ env.EKS_CLUSTER }}
+            chart-path: helm/appcharts
+            namespace: default
+            values: appimage=${{ secrets.REGISTRY }}/${{ env.ECR_REPOSITORY }},apptag=${{ github.run_number }}
+            name: webapp-stack
+        
+        - name: Show Pods
+          run: kubectl get pod -A
+        
+        - name: Show SVC
+          run: kubectl get ingress
